@@ -4,95 +4,96 @@ import matplotlib.pyplot as plt
 from sklearn import neighbors, datasets
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from sklearn.naive_bayes import MultinomialNB
 
 class Dataset:
-	category = {}
 	trainset = []
 	targetset = []
 	testset = []
+	targettestset = []
 	def __init__(self, path):
 		self.path = path
 
-	def createDataset(self):
-		self.getCategory()
+	def createDataset(self, n):
 		self.setTestset()
-		self.setTrainset()
-
-	def getCategory(self):
-		i = 0
-		for f in glob.glob(self.path+"/*"):
-			self.category[f[14:]] = i
-			i += 1
+		self.setTrainset(n)
 
 	def setTestset(self): #ham nay lay ra 5000 doc de test
-		temp = set()
+		temp = []; temp2 = []
+		self.testset = []; self.targettestset = []
 		for f1 in glob.glob(self.path+"/*"):
-			elements = random.randint(0, 5)
-			if len(temp) < 20:
+			elements = random.randint(0, 1000)
+			if len(temp) < 5000:
 				x = set(random.sample(os.listdir(f1), elements))
-				temp.update(x)
+				temp2.extend([f1[14:] for i in range(len(x))])
+				temp.extend(list(x))
 			else:
 				break
-		self.testset.extend(random.sample(temp, 20))
+		# self.testset.extend(random.sample(temp, 5000))
+		self.testset.extend([temp[i] for i in range(5000)])
+		self.targettestset.extend([temp2[i] for i in range(5000)])
 
-	def setTrainset(self):
+	def setTrainset(self, n):
 		temp = []
-		while len(temp) < 10:
+		self.trainset = []; self.targetset = []
+		while len(temp) < n:
 			pathchild = random.choice(os.listdir(self.path))
 			f1 = self.path+"/"+pathchild
-			elements = random.randint(0, 2)
-			if len(temp)+elements >= 10:
-				x = set(random.sample(os.listdir(f1), 10 - len(temp))) - set(self.testset)
+			elements = random.randint(0, 1000)
+			if len(temp)+elements >= n:
+				x = set(random.sample(os.listdir(f1), n - len(temp))) - set(self.testset)
 			else:
 				x = set(random.sample(os.listdir(f1), elements)) - set(self.testset)
 			y = [pathchild for i in range(len(x))]
 			self.targetset.extend(y)
 			temp.extend(list(x))		
 		self.trainset.extend(list(temp))
-		self.targetset = [self.targetset[i] for i in range(10)]
+		self.targetset = [self.targetset[i] for i in range(n)]
 
-d = Dataset('20_newsgroups/')
-d.createDataset()
-
-# print(d.testset)
-# results = list(map(int, d.testset))
-# print(results)
-# print(d.trainset)
-# print(d.targetset)
-
-# print(len(d.testset))
-# print(len(d.trainset))
-# print(len(d.targetset))
-
-# doc_X = d.data
-# doc_Y = d.target
-
-# sample = [[1],[2],[3],[4],[5],[6],[7],[8],[9],[10]]
-# label = [0,0,1,2,2,2,3,3,3,3]
-# for i in d.category:
-# 	print(i)
-
-X_train, X_test, Y_train, Y_test = train_test_split(d.trainset, d.targetset, test_size=5)
-print(X_train); print(Y_train)
-print(X_test); print(Y_test)
-X = np.reshape(X_train,(-1,1))
-print(X)
-Xt = np.reshape(X_test,(-1,1))
-clf = neighbors.KNeighborsClassifier(n_neighbors = 1, p = 2)
-clf.fit(X, Y_train)#Fit the model using X as training data and y as target values
-Y_pred = clf.predict(Xt)
-# print(Y_pred)
-print(list(Y_pred))
-print(Y_test)
+	def draw_pr_curve(self, pre, rec):
+		plt.xlabel('Trainset')
+		plt.ylabel('Accuracy of 100NN')
+		plt.ylim([0.0, 100.0])
+		plt.xlim([0.0, 15000.0])
+		
+		plt.step(rec,pre,where='pre', label='Accuracy (%)')
+		plt.title('K-Nearest Neighbors')
+		plt.legend()
+		plt.show()
 
 
-# X_train, X_test, Y_train, Y_test = train_test_split(doc_X, doc_Y, test_size=10)
 
-# # print(X_test)
-# # print(Y_test)
+def main():
+	rec = [1000, 3000, 5000, 8000, 10000, 12000, 15000]
+	pre = []
+	l = len(rec)
+	i = 0
+	while i < l:		
+		d = Dataset('20_newsgroups')
+		d.createDataset(rec[i])
+		# print(len(d.trainset), len(d.targetset), len(d.testset), len(d.targettestset))
+		# X_train, X_test, Y_train, Y_test = train_test_split(d.trainset, d.targetset, test_size=5000)
+		X_train = np.reshape(d.trainset,(-1,1))
+		X_test = np.reshape(d.testset,(-1,1))
+		Y_train = d.targetset
+		Y_test = d.targettestset
+		clf = neighbors.KNeighborsClassifier(n_neighbors = 100, p = 2)
+		clf.fit(X_train, Y_train)#Fit the model using X as training data and y as target values
+		Y_pred = clf.predict(X_test)
+		# print(list(Y_pred))
+		# print(Y_test)
+		pre.append(accuracy_score(Y_test, list(Y_pred))*100)
+		print("Accuracy of 100NN: %.2f %%" %(pre[i]))
+		i += 1
+	d.draw_pr_curve(pre, rec)
 
-# clf = neighbors.KNeighborsClassifier(n_neighbors = 1, p = 2)
-# clf.fit(X_train, Y_train)#Fit the model using X as training data and y as target values
-# Y_pred = clf.predict(X_test)
-# print(Y_pred)
-# # print(Y_test)
+if __name__ == "__main__":
+	main()
+
+# ## call MultinomialNB
+# 		clf = MultinomialNB()
+# 		# training 
+# 		clf.fit(X_train, Y_train)
+# 		# test
+# 		print('Predicting class of d5:', str(clf.predict(X_test)[0]))
+# 		print('Probability of d6 in each class:', clf.predict_proba(X_test))

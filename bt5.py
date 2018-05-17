@@ -5,6 +5,7 @@ from sklearn import neighbors, datasets
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import precision_recall_curve
 
 class Dataset:
 	trainset = []
@@ -13,9 +14,9 @@ class Dataset:
 	targettestset = []
 	def __init__(self, path):
 		self.path = path
+		self.setTestset()
 
 	def createDataset(self, n):
-		self.setTestset()
 		self.setTrainset(n)
 
 	def setTestset(self): #ham nay lay ra 5000 doc de test
@@ -51,8 +52,8 @@ class Dataset:
 		self.targetset = [self.targetset[i] for i in range(n)]
 
 	def draw_pr_curve(self, pre, rec):
-		plt.xlabel('Trainset')
-		plt.ylabel('Accuracy of 100NN')
+		plt.xlabel('Recall')
+		plt.ylabel('Precision')
 		plt.ylim([0.0, 100.0])
 		plt.xlim([0.0, 15000.0])
 		
@@ -61,20 +62,18 @@ class Dataset:
 		plt.legend()
 		plt.show()
 
-
-
-def main():
+def KNN():
 	rec = [1000, 3000, 5000, 8000, 10000, 12000, 15000]
 	pre = []
 	l = len(rec)
 	i = 0
+	d = Dataset('20_newsgroups')
+	X_test = np.reshape(d.testset,(-1,1))
 	while i < l:		
-		d = Dataset('20_newsgroups')
 		d.createDataset(rec[i])
 		# print(len(d.trainset), len(d.targetset), len(d.testset), len(d.targettestset))
 		# X_train, X_test, Y_train, Y_test = train_test_split(d.trainset, d.targetset, test_size=5000)
 		X_train = np.reshape(d.trainset,(-1,1))
-		X_test = np.reshape(d.testset,(-1,1))
 		Y_train = d.targetset
 		Y_test = d.targettestset
 		clf = neighbors.KNeighborsClassifier(n_neighbors = 100, p = 2)
@@ -87,13 +86,44 @@ def main():
 		i += 1
 	d.draw_pr_curve(pre, rec)
 
+def NaiveBayes(): #Multinomial Naive Bayes
+	rec = [1000, 3000, 5000, 8000, 10000, 12000, 15000]
+	pre = []
+	l = len(rec)
+	i = 0
+	d = Dataset('20_newsgroups')
+	X_test = list(map(int, d.testset))
+	X_test = np.reshape(X_test,(-1,1))
+	while i < l:		
+		d.createDataset(rec[i])
+		# X_train = np.array([[i] for i in d.trainset])
+		# X_test = np.array([[i] for i in d.testset])
+		# Y_train = np.array(d.targetset)
+		# Y_test = np.array(d.targettestset)
+		X_train = list(map(int, d.trainset))
+		X_train = np.reshape(X_train,(-1,1))
+		Y_train = np.array(d.targetset)
+		Y_test = d.targettestset
+		# print(X_train, Y_train)
+		clf = MultinomialNB()# call MultinomialNB
+		clf.fit(X_train, Y_train)# training 
+		# test
+		Y_pred = clf.predict(X_test)[0]
+		prob = clf.predict_proba(X_test)[0]
+		# precision, recall, thresholds = precision_recall_curve(Y_test, list(Y_pred))
+		pre.append(np.amax(prob)*100)
+		# print(precision, recall)
+		print('Predicting of testset:', Y_pred)
+		print('Probability of testset in each category:', prob)
+		print('Probability of testset in %s:' %(Y_pred),":", pre[i])
+		print("-"*20)
+		i += 1
+	# d.draw_pr_curve(pre, rec)
+	
+
+def main():
+	KNN()
+	NaiveBayes()
+
 if __name__ == "__main__":
 	main()
-
-# ## call MultinomialNB
-# 		clf = MultinomialNB()
-# 		# training 
-# 		clf.fit(X_train, Y_train)
-# 		# test
-# 		print('Predicting class of d5:', str(clf.predict(X_test)[0]))
-# 		print('Probability of d6 in each class:', clf.predict_proba(X_test))
